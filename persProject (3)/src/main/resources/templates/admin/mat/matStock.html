@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity5"
+	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+	layout:decorate="~{/layout/layout}">
+<head>
+<meta charset="UTF-8">
+<title>InOut</title>
+<link rel="stylesheet"
+	href="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.css" />
+<script
+	src="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.js"></script>
+
+
+<style type="text/css">
+.tui-datepicker {
+	z-index: 1001;
+}
+
+.tui-select-box {
+	z-index: 1001;
+}
+
+/* ul 스타일 */
+.ul-style {
+	list-style: none;
+	padding: 0px;
+}
+
+.ul-style li>label {
+	width: 100px;
+	text-align: center;
+}
+
+.ul-style li {
+	padding: 5px;
+}
+</style>
+</head>
+<body>
+	<article layout:fragment="content">
+		<main class="main" id="main">
+			<h3>재고조회</h3>
+			<div>
+				<ul class="ul-style">
+					<li><label>품목</label><input type="text" data-bs-toggle="modal" data-bs-target="#matCodeModal2" id="matCode1"> <i
+						class="bi bi-search" data-bs-toggle="modal"
+						data-bs-target="#matCodeModal2"></i> <input type="text"
+						style="background-color: #E9E9E9" id="matCode2" readonly></li>						
+					<li><label>창고</label><input type="text" data-bs-toggle="modal" data-bs-target="#whNameModal" id="whName1"> <i
+						class="bi bi-search" data-bs-toggle="modal"
+						data-bs-target="#whNameModal"></i> <input type="text"
+						style="background-color: #E9E9E9" id="whName2" readonly></li>						
+					<li><label>입고일자</label>
+						<div class="tui-datepicker-input tui-datetime-input tui-has-focus">
+							<input type="text" id="datepicker-input" aria-label="Date-Time">
+							<span class="tui-ico-date"></span>
+							<div id="wrapper" style="margin-top: -1px;"></div>
+						</div>
+						<button class="button" id="insertBtn" onclick="filter()">조회</button>
+						<button class="button" id="reset">초기화</button>
+						<button class="button" onclick="whNameUpdate()">수정</button>
+						<button class="button">삭제</button></li>
+				</ul>
+				<div id="stockGrid"></div>
+			</div>
+
+
+			<!-- matCodeModal2 -->
+			<div class="modal fade" id="matCodeModal2" tabindex="-1"
+				aria-labelledby="lLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"
+								aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div>
+								<div id="matCodeGrid2"></div>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary"
+								data-bs-dismiss="modal">Close</button>
+							<button type="button" class="btn btn-primary">Save
+								changes</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- 조회 창고 -->
+			<div class="modal fade" id="whNameModal" tabindex="-1"
+				aria-labelledby="whNameModalLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"
+								aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div>
+								<div id="whNameGrid"></div>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary"
+								data-bs-dismiss="modal">Close</button>
+							<button type="button" class="btn btn-primary">Save
+								changes</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+
+			<!-- 수정 창고 -->
+			<div class="modal fade" id="whNameModal2" tabindex="-1"
+				aria-labelledby="whNameModalLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"
+								aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div>
+								<div id="whNameGrid2"></div>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary"
+								data-bs-dismiss="modal">Close</button>
+							<button type="button" class="btn btn-primary">Save
+								changes</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<script>
+			//입고 => 창고만 수정 가능 // 이미 입고한 부분에 관해서 돈터치~
+			
+			matStockList();
+			material();
+			whName();
+			
+				const stockGrid = new tui.Grid({
+					el : document.getElementById('stockGrid'),
+					bodyHeight: 500,
+					rowHeaders : [ 'checkbox' ],
+					scrollX : false,
+					scrollY : true,
+					columns : [ {
+						header : 'LOT번호',
+						name : 'lotNo',
+						align : 'center'
+					},{
+						header : '입고일',
+						name : 'lotDate',
+						filter : 'select',
+						align : 'center',
+			            formatter({value}) {
+			            	return `${value.substring(0,10)}`;
+			            	}
+					},
+					{
+						header : '자재 코드',
+						name : 'mpCode',
+						align : 'center'
+					}, {
+						header : '자재명',
+						name : 'matName',
+						filter : 'select',
+						align : 'center'
+					}, {
+						header : '수량',  //ㄱㅖ산
+						name : 'lotQty',
+						align : 'center'
+					}, {
+						header : '창고 코드', 
+						name : 'whCode',
+						align : 'center' 
+					}, {
+						header : '창고',
+						name : 'whName',
+						filter : 'select',
+						align : 'center'
+					}]
+				});
+			
+				stockGrid.hideColumn("mpCode", "mpCode");
+				stockGrid.hideColumn("whCode", "whCode");
+
+
+				
+				/*------------
+	            // 함수
+	            ----------------*/
+	            
+	            function matStockList(){
+					$.ajax({
+						url : "/matStockList",
+						dataType : "json",
+						success : function(data) {
+							stockGrid.resetData(data);
+							console.log(data);
+						},
+						error : function(reject) {
+							console.log(reject);
+						}
+					})
+				}
+				
+	            function whName(){
+					$.ajax({
+						url : '/whList',
+						dataType : "json",
+						success : function(data){
+							whNameGrid.resetData(data);
+							whNameGrid2.resetData(data);
+						},
+						error : function (reject){
+							console.log(reject);
+						}
+					})
+				}
+				
+				function material() {
+					$.ajax({
+						url : '/material',
+						dataType : "json",
+						success : function(data) {
+							matCodeGrid2.resetData(data);
+						},
+						error : function(reject) {
+							console.log(reject);
+						}
+					})
+				};
+				
+				function whNameUpdate() {
+					
+					let rowData = stockGrid.getCheckedRows();
+	            	console.log(rowData);
+           		 
+		     		let header = $("meta[name='_csrf_header']").attr('content');
+		    	    let token = $("meta[name='_csrf']").attr('content');
+					
+					$.ajax({
+						url : '/updateMat',
+						method : 'post',
+						contentType: "application/json",
+				        data:JSON.stringify(rowData),
+				        dataType : "json",
+				        async: false,
+				         beforeSend : function(xhr) {
+				            xhr.setRequestHeader(header, token);
+				         },
+				         success : function(data) {
+				      	   if(data > 0) {
+				            	console.log(data);
+				            	matStockList();
+				      	   }else {
+				      		   alert("실패")
+				      	   }
+				         },
+				         error : function(request,status,error) {
+				      	  alert("code:"+request.status+"\n"+"message:"+request.responseText+"\n"+"error:"+error);
+				          alert("왜이러냐 진짜");
+				         }
+				      });
+				}
+				
+				
+				/*------------
+	            // 모달창 띄우기
+	            ----------------*/
+	            
+	            var datepicker = new tui.DatePicker('#wrapper', {
+					//date : new Date(),
+					input : {
+						element : '#datepicker-input',
+						format : 'yyyy-MM-dd'
+					}
+				});
+	            
+	            
+	            stockGrid.on('click',function(ev){
+	                  if(ev.columnName =='whName'){
+	                     $('#whNameModal2').modal('show');
+	                     whNameGrid2.refreshLayout();
+	                  }
+	               });
+	            
+				 document.addEventListener('shown.bs.modal', function() {
+					 matCodeGrid2.refreshLayout();
+					}, '.modal');
+				 
+				 document.addEventListener('shown.bs.modal', function() {
+					 whNameGrid.refreshLayout();
+					}, '.modal');
+
+				 document.addEventListener('shown.bs.modal', function() {
+					 whNameGrid2.refreshLayout();
+					}, '.modal');	            
+	            /*------------
+	            // 모달 데이터 가져오기
+	            ----------------*/
+	            
+	            var whNameGrid = new tui.Grid({
+	            	el : document.getElementById('whNameGrid'),
+	            	bodyHeight : 200,
+	            	rowHeaders : [],
+	            	scrollX : false,
+	                scrollY : true,
+	                columns : [{
+	                   		header : '창고코드',
+	                   		name : 'whCode'
+	                },{
+	                   		header : '창고',
+	                   		name : 'whName'
+	                },{
+		               		header : '창고위치',
+		                    name : 'whLocation'
+					},{
+		                    header : '담당자',
+		                    name : 'whManager'
+					}]
+	             });
+	            
+	            var whNameGrid2 = new tui.Grid({
+	            	el : document.getElementById('whNameGrid2'),
+	            	bodyHeight : 200,
+	            	rowHeaders : [],
+	            	scrollX : false,
+	                scrollY : true,
+	                columns : [{
+	                   		header : '창고코드',
+	                   		name : 'whCode'
+	                },{
+	                   		header : '창고',
+	                   		name : 'whName'
+	                },{
+		               		header : '창고위치',
+		                    name : 'whLocation'
+					},{
+		                    header : '담당자',
+		                    name : 'whManager'
+					}]
+	             });
+	            
+	            /*------------
+	            // 모달 데이터 넣기
+	            ----------------*/
+	            whNameGrid2.on('click', ev => {
+	            	let val = whNameGrid2.getRow(ev.rowKey); // 거래처클릭한 그리드
+	                
+	                let val2 = stockGrid.getFocusedCell().rowKey; // 진짜 큰 그리드
+	                 
+	                   console.log(whNameGrid2.getValue(ev.rowKey,ev.columnName));
+	                 const amg = whNameGrid2.getValue(ev.rowKey,ev.columnName);
+	                 stockGrid.setValue(val2, 'whName', val.whName);
+	                 stockGrid.setValue(val2, 'whCode', val.whCode);
+	                 $('#whNameModal2').modal("hide");
+	            })
+	            
+	            
+				 /*------------
+				// matCode 모달 데이터 가져오기
+				----------------*/
+				
+				
+				var matCodeGrid2 = new tui.Grid({
+					el : document.getElementById('matCodeGrid2'),
+					bodyHeight : 200,
+					rowHeaders : [],
+					scrollX : false,
+					scrollY : false,
+					columns : [{
+						header : '자재코드',
+						name : 'matCode'
+					},{
+						header : '자재명',
+						name : 'matName'
+					}]
+				});
+	            
+	            
+				/*------------
+				// matCode 모달 데이터 가져오기
+				----------------*/
+				matCodeGrid2.on('click', ev => {
+				   let rowData = matCodeGrid2.getRow(ev.rowKey); // 거래처클릭한 그리드
+				   
+				   let mcVal = rowData['matCode'];
+				   let mnVal = rowData['matName'];
+				   
+				   $('#matCode1').val(mcVal);
+				   $('#matCode2').val(mnVal);
+				   
+				   $('#matCodeModal2').modal("hide");
+				   
+			   });
+				
+				whNameGrid.on('click', ev => {
+				   let rowData = whNameGrid.getRow(ev.rowKey); // 거래처클릭한 그리드
+				   
+				   let wcVal = rowData['whCode'];
+				   let wnVal = rowData['whName'];
+				   
+				   $('#whName1').val(wcVal);
+				   $('#whName2').val(wnVal);
+				   
+				   $('#whNameModal').modal("hide");
+				   
+			   });
+
+				/*------------
+				// filter기능
+				----------------*/
+				
+				function filter() {
+					
+					mv = document.getElementById('matCode2');
+					cv = document.getElementById('whName2');				
+					datev = document.getElementById('datepicker-input');
+					
+					const state = [{code: 'contain', value: mv.value}];
+					const state2 = [{code: 'contain', value: cv.value}];
+					const state3 = [{code : 'contain', value: datev.value}];
+
+					stockGrid.filter('matName', state);
+					stockGrid.filter('whName', state2);
+					stockGrid.filter('lotDate', state3);
+
+				}
+				
+				reset.addEventListener('click', () => {
+	                document.getElementById('matCode1').value = '';
+	                document.getElementById('matCode2').value = '';
+	                stockGrid.unfilter('matName');
+	                document.getElementById('whName1').value = '';
+	                document.getElementById('whName2').value = '';
+	                stockGrid.unfilter('whName');
+	                stockGrid.unfilter('lotDate');
+	                //datepicker.setDate(new Date());              
+	                datepicker.setDate(null);              
+	             })  
+          
+			</script>
+		</main>
+	</article>
+</body>
+</html>

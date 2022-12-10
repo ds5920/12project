@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity5"
+	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+	layout:decorate="~{/layout/layout}">
+<head>
+<meta charset="UTF-8">
+<title>공정 검사 페이지</title>
+
+<style>
+.tui-datepicker {
+	z-index: 1001;
+}
+
+.tui-select-box {
+	z-index: 1001;
+}
+
+/* ul 스타일 */
+.ul-style {
+	list-style: none;
+	padding: 0px;
+}
+
+</style>
+
+<link rel="stylesheet"
+	href="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.css" />
+<script
+	src="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.js"></script>
+</head>
+<body>
+	<article layout:fragment="content">
+		<main class="main" id="main">
+			<div id="od-title">
+				<h3>공정 조회</h3>
+			</div>
+
+			<div id="od-content">
+				<div id="input-group">
+				<!-- 공정 검사 검색 기능 -->
+					<ul class="ul-style">
+				<!-- 
+						<li><label for="prtName">검색</label><input type="text">
+							<br></li> -->
+
+						<li><label>일자별 검색</label>
+							<div
+								class="tui-datepicker-input tui-datetime-input tui-has-focus">
+								<input id="startpicker-input" type="text" aria-label="Date">
+								<span class="tui-ico-date"></span>
+								<div id="startpicker-container" style="margin-left: -1px;"></div>
+							</div> <span>-</span>
+							<div
+								class="tui-datepicker-input tui-datetime-input tui-has-focus">
+								<input id="endpicker-input" type="text" aria-label="Date">
+								<span class="tui-ico-date"></span>
+								<div id="endpicker-container" style="margin-left: -1px;"></div>
+							</div> <!-- 버튼 -->
+							<button class="button" id="pcSearch">조회</button>
+							<button class="button" id="resetBtn">초기화</button></li>
+					</ul>
+				</div>
+			</div>
+			<!-- 공정 검사 내역 그리드 -->
+			<div id="prsChkGrid"></div>
+			<script>
+			//페이지 로딩시 그리드 데이터 가져옴
+			showProcessCheck();
+			
+			var token = $("meta[name='_csrf']").attr("content");
+			var header = $("meta[name='_csrf_header']").attr("content");
+			
+			//datepicker
+				var today = new Date();
+				var picker = tui.DatePicker.createRangePicker({
+					startpicker : {
+						date : today,
+						input : '#startpicker-input',
+						container : '#startpicker-container'
+					},
+					endpicker : {
+						date : today,
+						input : '#endpicker-input',
+						container : '#endpicker-container'
+					},
+					selectableRanges : [ [
+							today,
+							new Date(today.getFullYear() + 1, today.getMonth(),
+									today.getDate()) ] ]
+				});
+				//공정 검사 페이지 그리드
+				var prsChkGrid = new tui.Grid({
+					 el: document.getElementById('prsChkGrid'),
+						pagination:true,
+						pageOption: {
+							useClient:true,
+							perPage:5
+						},
+				        scrollX : false,
+				        scrollY : false,
+					    columns:
+					    	[{
+								header: '작업 일자',
+						    	name: 'prsDate',
+						    	filter : 'select',
+								align : 'center',
+								filter : 'select',
+								/* formatter({value}) {
+								      return `${value.substring(0,10)}`;
+								    }  */
+							},
+							{
+								header: '공정명',
+							    name: 'prsName',
+								align : 'center',
+								filter : 'select'
+							},
+							{
+							 	header: '불량 코드',
+							    name: 'errCode',
+								align : 'center'
+							},
+							{
+							 	header: '불량명',
+							    name: 'prsErrQty',
+								align : 'center'
+							},
+							{
+								header: '불량 수',
+							    name: 'preDate',
+							    filter : 'select',
+								align : 'center',
+						 		formatter({value}) {
+							      return `${value.substring(0,10)}`;
+							    } 
+							},
+							{
+							    header : '불량률',
+							    name:'empName',
+							    filter : 'select',
+								align : 'center'
+							},
+							{
+							    header : '담당자',
+							    name:'empName',
+							    filter : 'select',
+								align : 'center'
+							},
+							{
+								header : '제품코드',
+							    name : 'prtCode',
+							    hidden : 1
+							}]
+					      });
+						//DB통신, 그리드 데이터 가져오기
+						function showProcessCheck(){
+							fetch("getProcessCheckList")
+							.then(res=>res.json())
+							.then(obj=>{
+								console.log(obj);
+								prsChkGrid.resetData(obj);
+							})
+						}
+						
+					/* date pricker */
+					function datePicker() {
+						rangeDatepickerInit('#startpicker-input', '#startpicker-container','#endpicker-input','#endpicker-container')
+						document.getElementById('startpicker-input').value = null;
+						document.getElementById('endpicker-input').value = null;	
+					}
+					
+					/*------------------------
+					// DatePicker 초기화버튼 이벤트
+					--------------------------*/
+					function resetDate() {
+						document.getElementById('resetDpBtn').addEventListener('click',function(){
+							document.getElementById('startpicker-input').value = null;
+							document.getElementById('endpicker-input').value = null;
+						});	
+					}
+					
+					// 공정조회 작업일자 조회버튼 클릭 이벤트 (조건 조회 탭)
+					function pcSearch() {
+						document.getElementById('pcSearch').addEventListener('click', function(){
+							let startDate = document.getElementById('startpicker-input').value;
+							let matOdDd = document.getElementById('endpicker-input').value;
+							let list = {matOdDd:matOdDd, matEdate:startDate};
+							
+							// 시작 일 <= 검색 날짜 <= 마지막 일
+							$.ajax({
+								url: '/prschkSearch',
+								method: 'POST',
+								contentType: 'application/json',					
+								data: JSON.stringify(list),
+								success: function(result){
+									console.log(result);
+									grid2.resetData(result);
+								},
+								error: function(reject){
+									console.log(reject);
+								}
+							})
+						})
+					}							
+			</script>
+
+		</main>
+	</article>
+</body>
+</html>

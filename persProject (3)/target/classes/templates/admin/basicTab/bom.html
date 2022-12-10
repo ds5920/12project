@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity5"
+	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+	layout:decorate="~{/layout/layout}">
+
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/vue@2.7.13/dist/vue.js"></script>
+<script
+	src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+
+<style>
+.menuTable {
+	width: 90%;
+	margin-left: 5%;
+	height: 100px;
+	text-align: center;
+	border: 0.1px solid gray;
+	background-color: white;
+}
+
+input {
+	text-align: center;
+}
+</style>
+</head>
+<body>
+	<article layout:fragment="content">
+		<main id="main" class="main">
+
+			<h4 style="margin-bottom: 3%;">
+				<strong>BOM 관리</strong>
+			</h4>
+			<div></div>
+			<form action="insertBOM" method="POST">
+				<div style="float: right; margin-bottom: 3%;">
+					<button type="button" class="button"
+						style="width: 100px; height: 30px;" onclick="put()">재료추가</button>
+					<button type="button" class="button"
+						style="width: 100px; height: 30px;" onclick="updateBOM()">수정</button>
+					<button type="button" class="button"
+						style="width: 100px; height: 30px;" onclick="input()">등록</button>
+				</div>
+				<table>
+					<tr>
+						<th>제품명</th>
+						<td><select style="width: 150px;" id="name">
+								<option>---선택---</option>
+								<th:block th:each="p : ${prt}">
+									<option th:value="${p.prtName}" th:text="${p.prtName}"></option>
+								</th:block>
+						</select></td>
+						<th>재료</th>
+						<td><select style="width: 150px;" id="mat">
+								<option>선택</option>
+								<th:block th:each="m : ${mat}">
+									<option th:value="${m.matName}" th:text="${m.matName}"></option>
+								</th:block>
+						</select></td>
+						<th>용량</th>
+						<td><input type="text" id="prc"></td>
+					</tr>
+				</table>
+				<div id="input"></div>
+			</form>
+			<br>
+			<h3 id="title">전체</h3>
+			<div>
+				<div id="menuGrid"></div>
+				<br>
+				<div id="bomGrid"></div>
+			</div>
+			<script>
+			
+			var token = $("meta[name='_csrf']").attr("content");
+			var header = $("meta[name='_csrf_header']").attr("content");
+			
+			menuAll();
+			showAll();
+			
+			const menuGrid = new tui.Grid({
+				el : document.getElementById('menuGrid'),
+				pagination:true,
+				pageOption: {
+					useClient:true,
+					perPage:10
+				},
+				scrollX : false,
+				scrollY : false,
+				columns : [ {
+					header : '제품명',
+					name : 'prtName',
+					align : 'center',
+					filter: 'select'
+				}]
+			});
+			
+			const BOMGrid = new tui.Grid({
+				el : document.getElementById('bomGrid'),
+				pagination:true,
+				pageOption: {
+					useClient:true,
+					perPage:10
+				},
+				rowHeaders: ['checkbox'],
+				scrollX : false,
+				scrollY : false,
+				columns : [ {
+					header : '재료명',
+					name : 'matName',
+					align : 'center',
+					filter: 'select',
+					editor: 'text'
+				}, {
+					header : '용량',
+					name : 'capacity',
+					align : 'center',
+					filter: 'select',
+					editor:'text'
+				}]
+			});
+			
+			var deleteCode = [];
+			
+			menuGrid.on('click', (ev) => {
+				
+				let prtName = ev.nativeEvent.target.innerText;
+				console.log(prtName);
+				
+				$("#title").text(prtName);
+
+				$.ajax({
+					url:'bomList',
+					data:{prtName:prtName},
+					dataType:"json",
+					async:false,
+					success:function(data){
+						BOMGrid.resetData(data);
+					},
+					error:function(request,status,error){
+						alert("code:"+request.status+"\n"+"message:"+request.responseText+"\n"+"error:"+error);
+						console.log(reject);
+					}
+				})
+			});
+			
+			function updateBOM() {
+				console.log(BOMGrid.getCheckedRows());
+				let mat = [];
+				let cap = [];
+				for(co of BOMGrid.getCheckedRows()){
+					console.log(co.matName);
+					mat.push(co.matName);
+					cap.push(co.capacity);
+				}
+				
+				let prtName1 = $('#title').html();
+				let prtName = [];
+				
+				prtName.push(prtName1);
+				console.log(prtName);
+				$.ajax({
+					url:'updateBOM',
+					type:'POST',
+					data:{prtName:prtName, mat:mat, cap:cap},
+					dataType:"json",
+					async:false,
+					beforeSend : function(xhr){
+						xhr.setRequestHeader(header, token);
+					},
+					success:function(data){
+						if(data > 0) {
+							alert("업데이트완료");
+							showAll();			
+						} else {
+							alert("업데이트실패");
+						}
+					},
+					error:function(request,status,error){
+						alert("code:"+request.status+"\n"+"message:"+request.responseText+"\n"+"error:"+error);
+						console.log(code);
+						console.log(reject);
+					}
+				})
+			}
+			
+			function menuAll() {
+				url="bomMenu"
+				       fetch(url) // 설비 단건조회 불러오는 아작스
+				       .then(res=>res.json())
+				       .then(obj=>{
+				           console.log(obj);
+				           menuGrid.resetData(obj);
+				       })
+			}
+			
+			function showAll() {
+				$('#title').text("전체");
+				
+				url="codeList"
+				       fetch(url) // 설비 단건조회 불러오는 아작스
+				       .then(res=>res.json())
+				       .then(obj=>{
+				           console.log(obj);
+				           BOMGrid.resetData(obj);
+				       })
+			}
+			
+			function put() {
+				let name = $('#name').val();
+				let prc = $('#prc').val();
+				let mat = $('#mat').val();
+				
+				$('#input').append('<span>제품명</span><input type="text" name="prtName" value="'+ name +'" readonly style="border:0px;"><span>재료</span><input type="text" name="matName" value="'+ mat +'" readonly style="border:0px;"><span>용량</span><input type="text" name="capacity" value="'+ prc +'" readonly style="border:0px;"><br>');
+			}
+			
+			function input() {
+				let nameList = [];
+				let matList = [];
+				let capList = [];
+				
+				let name = $('#input').find('input[name="prtName"]');
+				for (let i = 0; i < name.length; i++) {
+					nameList.push(name[i].value);
+				}
+
+				let cap = $('#input').find('input[name="capacity"]');
+				for (let i = 0; i < cap.length; i++) {
+					capList.push(cap[i].value);
+				}
+				
+				let mat = $('#input').find('input[name="matName"]');
+				for (let i = 0; i < mat.length; i++) {
+					matList.push(mat[i].value);
+				}
+				
+				var token = $("meta[name='_csrf']").attr("content");
+				var header = $("meta[name='_csrf_header']").attr("content");
+				
+				$.ajax({
+					url:'insertBOM',
+					type:'POST',
+					data:{nameList:nameList, capList:capList, matList:matList},
+					dataType:"json",
+					async:false,
+					beforeSend : function(xhr){
+						xhr.setRequestHeader(header, token);
+					},
+					success:function(data){
+						if(data > 0) {
+							alert("등록완료");
+							showAll();					
+						} else {
+							alert("등록실패");
+						}
+					},
+					error:function(request,status,error){
+						alert("code:"+request.status+"\n"+"message:"+request.responseText+"\n"+"error:"+error);
+						console.log(code);
+						console.log(reject);
+					}
+				})
+				
+				menuAll();
+				$('#input').html('');
+			}
+			</script>
+		</main>
+	</article>
+
+	<!-- Vendor JS Files -->
+	<script src="assets/vendor/apexcharts/apexcharts.min.js"></script>
+	<script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+	<script src="assets/vendor/chart.js/chart.min.js"></script>
+	<script src="assets/vendor/echarts/echarts.min.js"></script>
+	<script src="assets/vendor/quill/quill.min.js"></script>
+	<script src="assets/vendor/simple-datatables/simple-datatables.js"></script>
+	<script src="assets/vendor/tinymce/tinymce.min.js"></script>
+	<script src="assets/vendor/php-email-form/validate.js"></script>
+
+	<!-- Template Main JS File -->
+	<script src="assets/js/main.js"></script>
+
+</body>
+
+</html>
